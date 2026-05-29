@@ -3,8 +3,13 @@ import fetch from "node-fetch";
 
 const router = express.Router();
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const LUMA_VOICE_ID = "hpNnbYtb8W4KsAeTK1MX";
+const LUMA_VOICE_ID = process.env.LUMA_VOICE_ID || "4DCtIjBPAAmizg9MemsD";
+
+function getElevenLabsKey() {
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (!key) console.warn("[ElevenLabs] ELEVENLABS_API_KEY manquante");
+  return key;
+}
 
 // POST /api/voice/tts
 // Body : { text: "..." }
@@ -16,13 +21,16 @@ router.post("/tts", async (req, res) => {
     return res.status(400).json({ error: "text requis" });
   }
 
+  const key = getElevenLabsKey();
+  if (!key) return res.status(503).json({ error: "ElevenLabs non configuré" });
+
   try {
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${LUMA_VOICE_ID}/stream`,
       {
         method: "POST",
         headers: {
-          "xi-api-key":   ELEVENLABS_API_KEY,
+          "xi-api-key":   key,
           "Content-Type": "application/json",
           "Accept":       "audio/mpeg",
         },
