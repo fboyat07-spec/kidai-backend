@@ -1,0 +1,6 @@
+{
+  "addition": [],
+  "multiplication": ["addition"],
+  "division": ["multiplication"],
+  "fractions": ["division"]
+}

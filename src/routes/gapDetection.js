@@ -14,7 +14,7 @@
 
 import express        from "express";
 import fetch          from "node-fetch";
-import { parseGaps, computeConsensus } from "../schemas/gapDetection.js";
+import { parseGaps, computeConsensus } from "../../schemas/gapDetection.js";
 import {
   PROMPT_GPT4,
   PROMPT_CLAUDE,
