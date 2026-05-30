@@ -359,10 +359,7 @@ router.post("/chat", async (req, res) => {
     console.log("[RAW REPLY]", rawReply.substring(0, 100));
 
     // 3. Correction déterministe des hallucinations connues de GPT-4o
-    lumaReply = lumaReply
-      .replace(/[Cc]ombien de police[s]?\s/g, "Combien font ")
-      .replace(/de polices?\s+(\d)/g, "font $1")
-      .replace(/polices?\s+(\d)/g, "font $1");
+    lumaReply = lumaReply.replace(/[Cc]ombien de polices?\s*/g, "Combien font ");
 
     const fullSignals  = { ...signals, correct: isCorrect };
 
