@@ -4,6 +4,7 @@ import cors from "cors";
 import tutorRoute   from "./routes/tutorRoute.js";
 import voiceRoute   from "./routes/voiceRoute.js";
 import whisperRoute from "./routes/whisperRoute.js";
+import gapRoute     from "./routes/gapDetection.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use("/api/tutor",   tutorRoute);
 app.use("/api/voice",   voiceRoute);
 app.use("/api/whisper", whisperRoute);
+app.use("/api/gaps",    gapRoute);
 
 // 👉 REGISTER
 app.post("/auth/register", (req, res) => {
