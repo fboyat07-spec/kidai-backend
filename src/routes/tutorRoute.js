@@ -355,11 +355,14 @@ router.post("/chat", async (req, res) => {
     // 2. Strip du tag [✓]
     let lumaReply = rawReply.replace(/\s*\[✓\]\s*/u, " ").trimStart();
 
+    // Debug : log du texte brut GPT-4o (100 premiers chars)
+    console.log("[RAW REPLY]", rawReply.substring(0, 100));
+
     // 3. Correction déterministe des hallucinations connues de GPT-4o
     lumaReply = lumaReply
-      .replace(/[Cc]ombien de polices/g, "Combien font")
-      .replace(/[Cc]ombien de fois font/g, "Combien font")
-      .replace(/[Cc]ombien de police/g, "Combien font");
+      .replace(/[Cc]ombien de police[s]?\s/g, "Combien font ")
+      .replace(/de polices?\s+(\d)/g, "font $1")
+      .replace(/polices?\s+(\d)/g, "font $1");
 
     const fullSignals  = { ...signals, correct: isCorrect };
 
