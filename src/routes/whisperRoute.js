@@ -1,6 +1,5 @@
 import express from "express";
 import multer from "multer";
-import OpenAI from "openai";
 import fs from "fs";
 import path from "path";
 
@@ -9,7 +8,17 @@ const upload  = multer({
   dest: "uploads/",
   limits: { fileSize: 25 * 1024 * 1024 } // 25MB max
 });
-const openai  = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ── OpenAI lazy init ─────────────────────────────────────────
+let openai = null;
+
+async function getOpenAI() {
+  if (openai) return openai;
+  if (!process.env.OPENAI_API_KEY) return null;
+  const { default: OpenAI } = await import("openai");
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return openai;
+}
 
 // Crée le dossier uploads s'il n'existe pas
 if (!fs.existsSync("uploads")) fs.mkdirSync("uploads");
@@ -30,8 +39,14 @@ router.post("/transcribe", upload.single("audio"), async (req, res) => {
   const renamedPath = filePath + ext;
   fs.renameSync(filePath, renamedPath);
 
+  const client = await getOpenAI();
+  if (!client) {
+    fs.unlink(renamedPath, () => {});
+    return res.status(503).json({ error: "OpenAI non configuré — OPENAI_API_KEY manquante." });
+  }
+
   try {
-    const transcription = await openai.audio.transcriptions.create({
+    const transcription = await client.audio.transcriptions.create({
       file:     fs.createReadStream(renamedPath),
       model:    "whisper-1",
       language: "fr",
