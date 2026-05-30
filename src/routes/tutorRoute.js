@@ -340,9 +340,10 @@ router.post("/chat", async (req, res) => {
     // ── Extraction du signal de correction ───────────────────
     // LUMA préfixe sa réponse de [✓] si l'enfant a répondu juste.
     // On le retire de la réponse affichée afin que l'enfant ne le voie pas.
-    const CORRECT_TAG  = /^\s*\[✓\]\s*/u;
+    // Cherche [✓] n'importe où dans la réponse (LUMA peut préfixer un emoji avant le tag)
+    const CORRECT_TAG  = /\[✓\]/u;
     const isCorrect    = CORRECT_TAG.test(rawReply);
-    const lumaReply    = rawReply.replace(CORRECT_TAG, "").trimStart();
+    const lumaReply    = rawReply.replace(/\s*\[✓\]\s*/u, " ").trimStart();
 
     const fullSignals  = { ...signals, correct: isCorrect };
 
