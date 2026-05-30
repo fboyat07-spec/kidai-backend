@@ -334,9 +334,17 @@ router.post("/chat", async (req, res) => {
       return res.status(503).json({ error: "OpenAI non configuré — OPENAI_API_KEY manquante." });
     }
 
+    // Nettoie les hallucinations dans l'historique avant envoi à GPT-4o
+    const cleanedMessages = messages.map(msg => ({
+      ...msg,
+      content: typeof msg.content === "string"
+        ? msg.content.replace(/[Cc]ombien de polices?\s*/g, "Combien font ")
+        : msg.content
+    }));
+
     const completion = await client.chat.completions.create({
       model: "gpt-4o",
-      messages,
+      messages: cleanedMessages,
       max_tokens: 300,
       temperature: 0.7,
       presence_penalty: 0.3
