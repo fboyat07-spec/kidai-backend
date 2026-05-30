@@ -343,7 +343,7 @@ router.post("/chat", async (req, res) => {
     }));
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: cleanedMessages,
       max_tokens: 300,
       temperature: 0.7,
