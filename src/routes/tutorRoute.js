@@ -295,6 +295,22 @@ function detectSignals(message) {
   };
 }
 
+/**
+ * Validation mathématique déterministe.
+ * Retourne true si userAnswer correspond au résultat de l'opération simple
+ * détectée dans question, false si incorrect, null si pas de calcul simple.
+ */
+function validateMathAnswer(question, userAnswer) {
+  const match = question.match(/(\d+)\s*([+\-×x*])\s*(\d+)/);
+  if (!match) return null;
+  const [, a, op, b] = match;
+  const correct = (op === "+") ? +a + +b
+                : (op === "-") ? +a - +b
+                : +a * +b;          // ×, x, *
+  const userNum = parseInt(userAnswer.replace(/[^\d]/g, ""), 10);
+  return !isNaN(userNum) && userNum === correct;
+}
+
 router.post("/chat", async (req, res) => {
   console.log("[LUMA] Message reçu:", req.body?.message?.substring(0, 50));
   const {
@@ -352,7 +368,7 @@ router.post("/chat", async (req, res) => {
     }));
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: cleanedMessages,
       max_tokens: 300,
       temperature: 0.7,
@@ -361,20 +377,28 @@ router.post("/chat", async (req, res) => {
 
     const rawReply = completion.choices[0].message.content;
 
-    // ── Extraction du signal de correction ───────────────────
-    // LUMA préfixe sa réponse de [✓] si l'enfant a répondu juste.
-    // On le retire de la réponse affichée afin que l'enfant ne le voie pas.
+    // ── Validation mathématique déterministe ──────────────────
+    // Cherche la dernière question de LUMA dans l'historique
+    const lastLumaMsg = history.filter(m => m.role === "assistant").pop()?.content || "";
+    const mathValid   = validateMathAnswer(lastLumaMsg, message);
+    console.log("[MATH VALID]", { q: lastLumaMsg.substring(0, 60), ans: message, result: mathValid });
+
+    // Force [✓] si la validation math dit CORRECT mais que GPT l'a oublié
+    const effectiveReply = (mathValid === true && !/\[✓\]/u.test(rawReply))
+      ? "[✓] " + rawReply
+      : rawReply;
+    if (effectiveReply !== rawReply) {
+      console.log("[MATH VALID] [✓] injecté — GPT l'avait omis");
+    }
+
     // ── Post-processing centralisé ───────────────────────────
     // 1. Détection [✓] n'importe où (LUMA peut préfixer un emoji avant le tag)
     const CORRECT_TAG  = /\[✓\]/u;
-    const isCorrect    = CORRECT_TAG.test(rawReply);
-    console.log("[CORRECT CHECK] rawReply[:50]:", rawReply.substring(0, 50), "| isCorrect:", isCorrect);
+    const isCorrect    = CORRECT_TAG.test(effectiveReply);
+    console.log("[CORRECT CHECK] effectiveReply[:50]:", effectiveReply.substring(0, 50), "| isCorrect:", isCorrect);
 
     // 2. Strip du tag [✓]
-    let lumaReply = rawReply.replace(/\s*\[✓\]\s*/u, " ").trimStart();
-
-    // Debug : log du texte brut GPT-4o (100 premiers chars)
-    console.log("[RAW REPLY]", rawReply.substring(0, 100));
+    let lumaReply = effectiveReply.replace(/\s*\[✓\]\s*/u, " ").trimStart();
 
     // 3. Correction déterministe des hallucinations connues de GPT-4o
     lumaReply = lumaReply.replace(/[Cc]ombien de polices?\s*/g, "Combien font ");
