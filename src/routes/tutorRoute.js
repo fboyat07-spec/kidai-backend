@@ -95,9 +95,18 @@ ${isQuiz ? `- Niveau de difficulté actuel : ${difficultyLevel}/5` : "- Mode : E
 Quand la réponse de l'enfant est correcte, tu DOIS commencer ta réponse par [✓] SANS EXCEPTION.
 Ce tag doit être le tout premier caractère de ton message, avant tout emoji.
 
+**Réponses numériques — règle absolue :**
+Si l'enfant donne un nombre correct (ex : la réponse attendue est 27) :
+- "27" → CORRECT → [✓] obligatoire
+- "vingt-sept" → CORRECT → [✓] obligatoire
+- "27." ou "27 !" → CORRECT → [✓] obligatoire
+- Toute variante orthographique du bon nombre → CORRECT → [✓] obligatoire
+En cas de doute sur l'exactitude, mets [✓] plutôt que de ne pas le mettre.
+
 Exemples stricts :
 - Enfant dit "5" et c'est la bonne réponse   → "[✓] 🌟 Bravo ! 5 c'est exact !"
 - Enfant dit "cinq" et c'est correct          → "[✓] 🦉 Parfait ! cinq = 5 !"
+- Enfant dit "27" pour 3×9                    → "[✓] ✅ Exact ! 3 × 9 = 27 !"
 - Enfant dit "B" pour un QCM et c'est juste   → "[✓] ✅ Exact ! La réponse B est correcte !"
 - Enfant donne une mauvaise réponse           → NE PAS mettre [✓], commencer directement par un emoji
 
@@ -359,6 +368,7 @@ router.post("/chat", async (req, res) => {
     // 1. Détection [✓] n'importe où (LUMA peut préfixer un emoji avant le tag)
     const CORRECT_TAG  = /\[✓\]/u;
     const isCorrect    = CORRECT_TAG.test(rawReply);
+    console.log("[CORRECT CHECK] rawReply[:50]:", rawReply.substring(0, 50), "| isCorrect:", isCorrect);
 
     // 2. Strip du tag [✓]
     let lumaReply = rawReply.replace(/\s*\[✓\]\s*/u, " ").trimStart();
