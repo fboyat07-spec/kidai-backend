@@ -456,9 +456,10 @@ router.post("/session/end", async (req, res) => {
 
       await db.collection("rewards").doc(userId).set({
         total_xp: FieldValue.increment(rewards.xp),
-        badges: rewards.badge_unlocked
-          ? FieldValue.arrayUnion(rewards.badge_unlocked)
-          : FieldValue.arrayUnion(),
+        // arrayUnion() sans argument lève une erreur Firestore — on omet le champ si pas de badge
+        ...(rewards.badge_unlocked && {
+          badges: FieldValue.arrayUnion(rewards.badge_unlocked),
+        }),
         ...(rewards.item_dropped && {
           inventory: FieldValue.arrayUnion(rewards.item_dropped)
         })

@@ -37,7 +37,7 @@ async function getOpenAI() {
 
 const TIMEOUT_MS          = 8000;
 const OLLAMA_TIMEOUT_MS   = 30000;  // LLM local — réservé pour usage futur
-const CLAUDE_MODEL        = "claude-sonnet-4-20250514";
+const CLAUDE_MODEL        = "claude-sonnet-4-6";
 const GEMINI_MODEL        = "gemini-2.0-flash-lite";
 const OLLAMA_MODEL        = "tinyllama";  // désactivé (CPU trop lent) — réactiver si GPU dispo
 const OLLAMA_BASE_URL     = process.env.OLLAMA_URL || "http://localhost:11434";
