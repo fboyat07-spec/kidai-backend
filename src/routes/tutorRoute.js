@@ -307,7 +307,7 @@ function validateMathAnswer(question, userAnswer) {
   const correct = (op === "+") ? +a + +b
                 : (op === "-") ? +a - +b
                 : +a * +b;          // ×, x, *
-  const userNum = parseInt(userAnswer.replace(/[^\d]/g, ""), 10);
+  const userNum = parseInt((userAnswer || "").replace(/[^\d]/g, ""), 10);
   return !isNaN(userNum) && userNum === correct;
 }
 
@@ -496,7 +496,7 @@ router.post("/session/end", async (req, res) => {
       if (gapsDetected.length > 0) {
         const gapUpdates = {};
         gapsDetected.forEach(gap => {
-          const key = `gaps.${subject.toLowerCase()}_${gap.topic.replace(/\s/g, "_")}`;
+          const key = `gaps.${(subject || "").toLowerCase()}_${(gap.topic || "").replace(/\s/g, "_")}`;
           gapUpdates[key] = {
             detected: FieldValue.increment(gap.occurrences),
             resolved: false,
