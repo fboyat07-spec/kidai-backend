@@ -301,14 +301,31 @@ function detectSignals(message) {
  * détectée dans question, false si incorrect, null si pas de calcul simple.
  */
 function validateMathAnswer(question, userAnswer) {
-  const match = question.match(/(\d+)\s*([+\-×x*])\s*(\d+)/);
+  if (!question || !userAnswer) return null;
+
+  // Normalise les opérateurs Unicode → ASCII
+  const q = question.replace(/×/g, "*").replace(/÷/g, "/").replace(/[Xx]/g, "*");
+  const match = q.match(/(\d+)\s*([+\-*/])\s*(\d+)/);
   if (!match) return null;
+
   const [, a, op, b] = match;
-  const correct = (op === "+") ? +a + +b
-                : (op === "-") ? +a - +b
-                : +a * +b;          // ×, x, *
-  const userNum = parseInt((userAnswer || "").replace(/[^\d]/g, ""), 10);
-  return !isNaN(userNum) && userNum === correct;
+  const correct = op === "+" ? +a + +b
+                : op === "-" ? +a - +b
+                : op === "*" ? +a * +b
+                : op === "/" && +b !== 0 ? +a / +b
+                : null;
+  if (correct === null) return null;
+
+  // Normalise la réponse : virgule → point, garde chiffres et point
+  const normalized = (userAnswer || "").trim().replace(/,/g, ".").replace(/[^\d.]/g, "");
+  if (!normalized) return null;
+  const userNum = parseFloat(normalized);
+  if (isNaN(userNum)) return null;
+
+  // Comparaison : entiers → stricte, flottants → tolérance 0.01
+  return Number.isInteger(correct)
+    ? Math.round(userNum) === correct
+    : Math.abs(userNum - correct) < 0.01;
 }
 
 router.post("/chat", async (req, res) => {
@@ -555,6 +572,7 @@ function calculateRewards(accuracyPct, difficultyLevel, gapsDetected) {
   }
 
   xp += selectedRarity.xpBonus;
+  xp = Math.max(xp, 15); // XP minimum garanti — jamais 0
 
   const items = selectedRarity.items;
   const droppedItem = items[Math.floor(Math.random() * items.length)];
