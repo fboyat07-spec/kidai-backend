@@ -471,8 +471,17 @@ router.post("/session/end", async (req, res) => {
   }
 
   try {
-    const accuracyPct = Math.round((correctAnswers / questionsTotal) * 100);
-    const rewards = calculateRewards(accuracyPct, difficultyLevelEnd, gapsDetected);
+    const totalQuestions = Math.max(1, Math.round(toFiniteNumber(questionsTotal, 1)));
+    const correctCount = Math.min(
+      totalQuestions,
+      Math.max(0, Math.round(toFiniteNumber(correctAnswers, 0)))
+    );
+    const avgResponseTime = Math.max(0, Math.round(toFiniteNumber(avgResponseTimeSec, 0)));
+    const difficultyEnd = clampNumber(toFiniteNumber(difficultyLevelEnd, 1), 1, 5);
+    const normalizedGaps = normalizeGaps(gapsDetected, topic);
+
+    const accuracyPct = Math.round((correctCount / totalQuestions) * 100);
+    const rewards = calculateRewards(accuracyPct, difficultyEnd, normalizedGaps);
 
     const sessionPayload = {
       session_id: sessionId,
@@ -482,25 +491,25 @@ router.post("/session/end", async (req, res) => {
       topic,
       grade,
       performance: {
-        questions_total: questionsTotal,
-        correct: correctAnswers,
+        questions_total: totalQuestions,
+        correct: correctCount,
         accuracy_pct: accuracyPct,
-        avg_response_time_sec: avgResponseTimeSec,
-        difficulty_level_end: difficultyLevelEnd
+        avg_response_time_sec: avgResponseTime,
+        difficulty_level_end: difficultyEnd
       },
-      gaps_detected: gapsDetected.map(g => ({
+      gaps_detected: normalizedGaps.map(g => ({
         ...g,
         severity: g.occurrences >= 3 ? "high" : g.occurrences === 2 ? "medium" : "low"
       })),
       rewards_earned: rewards,
-      next_session_recommendation: buildNextSession(topic, gapsDetected, difficultyLevelEnd)
+      next_session_recommendation: buildNextSession(topic, normalizedGaps, difficultyEnd)
     };
 
     if (db) {
       await db.collection("sessions").doc(sessionId).set(sessionPayload, { merge: true });
 
       await db.collection("rewards").doc(userId).set({
-        total_xp: FieldValue.increment(rewards.xp),
+        total_xp: FieldValue.increment(typeof rewards.xp === 'number' && !isNaN(rewards.xp) ? rewards.xp : 0),
         // arrayUnion() sans argument lève une erreur Firestore — on omet le champ si pas de badge
         ...(rewards.badge_unlocked && {
           badges: FieldValue.arrayUnion(rewards.badge_unlocked),
@@ -510,12 +519,12 @@ router.post("/session/end", async (req, res) => {
         })
       }, { merge: true });
 
-      if (gapsDetected.length > 0) {
+      if (normalizedGaps.length > 0) {
         const gapUpdates = {};
-        gapsDetected.forEach(gap => {
-          const key = `gaps.${(subject || "").toLowerCase()}_${(gap.topic || "").replace(/\s/g, "_")}`;
+        normalizedGaps.forEach(gap => {
+          const key = `gaps.${buildGapKey(subject, gap.topic)}`;
           gapUpdates[key] = {
-            detected: FieldValue.increment(gap.occurrences),
+            detected: FieldValue.increment(typeof gap.occurrences === 'number' && !isNaN(gap.occurrences) ? gap.occurrences : 1),
             resolved: false,
             last_seen: Timestamp.now()
           };
@@ -537,7 +546,41 @@ router.post("/session/end", async (req, res) => {
   }
 });
 
+function toFiniteNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeGaps(gapsDetected, fallbackTopic) {
+  if (!Array.isArray(gapsDetected)) return [];
+
+  return gapsDetected
+    .filter(Boolean)
+    .map((gap) => ({
+      ...gap,
+      topic: String(gap.topic || fallbackTopic || "general"),
+      occurrences: Math.max(1, Math.round(toFiniteNumber(gap.occurrences, 1)))
+    }));
+}
+
+function buildGapKey(subject, gapTopic) {
+  const raw = `${subject || "general"}_${gapTopic || "general"}`;
+  return raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general";
+}
+
 function calculateRewards(accuracyPct, difficultyLevel, gapsDetected) {
+  accuracyPct = clampNumber(toFiniteNumber(accuracyPct, 0), 0, 100);
+  difficultyLevel = clampNumber(toFiniteNumber(difficultyLevel, 1), 1, 5);
+
   const rarityTable = [
     { rarity: "legendary", threshold: 0.99, xpBonus: 250, color: "#F59E0B",
       items: ["couronne_dorée", "lanterne_de_luma", "étoile_filante"] },
